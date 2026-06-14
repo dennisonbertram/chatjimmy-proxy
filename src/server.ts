@@ -386,19 +386,42 @@ function groundingScore(answer: string, reference: string): number {
   return hit / tokens.length;
 }
 
+// Block destructive / privileged shell commands the weak model sometimes hallucinates.
+// Returns the tool use if safe, or null if it should be refused.
+function guardToolUse(tu: any): any | null {
+  if (!tu) return null;
+  if (tu.name === 'Bash') {
+    const cmd = String(tu.input?.command || '');
+    const DANGER = [
+      /\bsudo\b/, /\brm\s+-[a-z]*\s*\//, /\brm\s+-rf\b/, /\bmkfs\b/, /\bdd\s+if=/,
+      /\bof=\/dev\//, />\s*\/dev\/sd/, /:\(\)\s*\{/, /\bchmod\s+-R\s+777\s+\//,
+      /\bchown\s+-R\b.*\s\//, /\/etc\/(passwd|shadow|hosts|sudoers)/, /\bshutdown\b/,
+      /\breboot\b/, /\bcurl\b[^|]*\|\s*(sh|bash)\b/, /\bwget\b[^|]*\|\s*(sh|bash)\b/,
+    ];
+    if (DANGER.some((re) => re.test(cmd))) {
+      console.log(`[WARN] BLOCKED dangerous Bash command: ${cmd.slice(0, 120)}`);
+      return null;
+    }
+  }
+  return tu;
+}
+
 // Best-of-N sampling: ChatJimmy is fast + non-deterministic.
-//  - forceTool (a tool call is expected): re-sample until we parse a valid tool_use.
-//  - final-answer turn: sample several and pick the answer MOST GROUNDED in the prior
-//    tool output (kills confabulation like inventing a filename from the search term).
-// This is the single biggest reliability lever for the weak 8B model.
+//   - valid tool call → use it (first call only; drop any fabricated continuation).
+//   - the model ATTEMPTS a tool call but botches the format → re-sample for a clean one.
+//   - plain TEXT with no tool attempt → a deliberate conversational/final answer; ACCEPT
+//     it. We NEVER fabricate a tool call for input like "hi" (forcing one made the weak
+//     model invent dangerous commands).
+//   - final-answer turn (groundAgainstTools): sample several texts, pick the one MOST
+//     GROUNDED in prior tool output (kills confabulation).
 async function sampleToolResponse(
   chatjimmyRequest: ChatJimmyRequest,
   toolNames: Set<string>,
-  forceTool: boolean,
+  groundAgainstTools: boolean,
   maxAttempts: number
 ): Promise<ParsedOutput> {
   let last: ParsedOutput = { text: '', toolUses: [] as any[] };
-  const reference = forceTool ? '' : priorToolResultText(chatjimmyRequest);
+  const reference = groundAgainstTools ? priorToolResultText(chatjimmyRequest) : '';
   const answerCandidates: ParsedOutput[] = [];
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -410,28 +433,26 @@ async function sampleToolResponse(
     }
     const parsed = parseToolCalls(text, toolNames) as ParsedOutput;
     last = parsed;
-    if (parsed.toolUses.length > 0) {
-      if (attempt > 0) console.log(`[INFO] best-of-N: got tool call on attempt ${attempt + 1}`);
-      // The weak model often fabricates a tool result + conclusion right after its tool
-      // call ("## Output from tool... The final answer is X"). When a tool call is
-      // expected, keep ONLY the first call and drop all fabricated continuation text so it
-      // can't pollute the conversation or pre-bias the model's answer.
-      if (forceTool) {
-        return { text: '', toolUses: [parsed.toolUses[0]] };
-      }
-      return parsed;
-    }
-    // Final-answer turn: collect non-empty candidates, choose the most grounded later.
-    if (!forceTool && parsed.text.trim()) {
-      answerCandidates.push(parsed);
-      // If there's no tool output to ground against, first non-empty is fine.
-      if (!reference) return parsed;
-    }
-  }
 
-  if (forceTool) {
-    console.log(`[WARN] best-of-N: no tool call after ${maxAttempts} attempts`);
-    return last;
+    if (parsed.toolUses.length > 0) {
+      if (attempt > 0) console.log(`[INFO] best-of-N: clean tool call on attempt ${attempt + 1}`);
+      const safe = guardToolUse(parsed.toolUses[0]);
+      if (!safe) {
+        return { text: 'I cannot run that — it looks unsafe (destructive or privileged command).', toolUses: [] };
+      }
+      // Keep ONLY the first call; drop any fabricated "## Output from tool..." continuation.
+      return { text: '', toolUses: [safe] };
+    }
+
+    // The model TRIED a tool call but the format was broken → re-sample for a clean one.
+    const attemptedTool = /<tool_call|<function\s*=/i.test(text);
+    if (attemptedTool && attempt < maxAttempts - 1) continue;
+
+    // Plain text (no tool attempt) — a deliberate conversational/final answer.
+    if (parsed.text.trim()) {
+      if (!reference) return parsed; // conversational turn — accept; never force a tool
+      answerCandidates.push(parsed); // final-answer turn — collect for grounded selection
+    }
   }
 
   if (answerCandidates.length > 0) {
@@ -544,11 +565,14 @@ app.post('/v1/messages', async (req: Request, res: Response): Promise<void> => {
 
         // TOOL PATH: best-of-N sampling (buffered), then structured tool_use emit.
         if (hasTools) {
-          const forceTool = !lastMessageIsToolResult(anthropicRequest);
-          const maxAttempts = forceTool
-            ? Number(process.env.TOOL_SAMPLE_ATTEMPTS || 5)
-            : Number(process.env.ANSWER_SAMPLE_ATTEMPTS || 3);
-          const parsed = await sampleToolResponse(chatjimmyRequest, toolNames, forceTool, maxAttempts);
+          // Ground answers against tool output ONLY on a turn that follows a tool_result.
+          // On a fresh user turn we do NOT force a tool — the model may legitimately answer
+          // in text (e.g. "hi"). maxAttempts allows re-sampling a botched tool-call format.
+          const groundAgainstTools = lastMessageIsToolResult(anthropicRequest);
+          const maxAttempts = groundAgainstTools
+            ? Number(process.env.ANSWER_SAMPLE_ATTEMPTS || 3)
+            : Number(process.env.TOOL_SAMPLE_ATTEMPTS || 5);
+          const parsed = await sampleToolResponse(chatjimmyRequest, toolNames, groundAgainstTools, maxAttempts);
 
           if (parsed.text) {
             sendEvent('content_block_delta', {
@@ -745,11 +769,14 @@ app.post('/v1/messages', async (req: Request, res: Response): Promise<void> => {
 
         if (hasTools) {
           // Best-of-N: re-sample until we get a valid tool call when one is expected.
-          const forceTool = !lastMessageIsToolResult(anthropicRequest);
-          const maxAttempts = forceTool
-            ? Number(process.env.TOOL_SAMPLE_ATTEMPTS || 5)
-            : Number(process.env.ANSWER_SAMPLE_ATTEMPTS || 3);
-          const parsed = await sampleToolResponse(chatjimmyRequest, toolNames, forceTool, maxAttempts);
+          // Ground answers against tool output ONLY on a turn that follows a tool_result.
+          // On a fresh user turn we do NOT force a tool — the model may legitimately answer
+          // in text (e.g. "hi"). maxAttempts allows re-sampling a botched tool-call format.
+          const groundAgainstTools = lastMessageIsToolResult(anthropicRequest);
+          const maxAttempts = groundAgainstTools
+            ? Number(process.env.ANSWER_SAMPLE_ATTEMPTS || 3)
+            : Number(process.env.TOOL_SAMPLE_ATTEMPTS || 5);
+          const parsed = await sampleToolResponse(chatjimmyRequest, toolNames, groundAgainstTools, maxAttempts);
           const blocks = buildContentBlocks(parsed);
           const hasToolUse = parsed.toolUses.length > 0;
           anthropicResponse = {

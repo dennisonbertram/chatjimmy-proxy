@@ -36,4 +36,5 @@ exec "$DC" --endpoint chatjimmy --model "$MODEL" --allowedTools "$ALLOWED" \
      --exclude-dynamic-system-prompt-sections \
      --strict-mcp-config \
      --disable-slash-commands \
+     --setting-sources project \
      "$@"
