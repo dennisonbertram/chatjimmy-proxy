@@ -73,10 +73,14 @@ export function buildToolSystemPrompt(tools: AnthropicTool[], toolChoice?: any):
   // Structure tuned by the eval optimizer (eval/best-config.json): a phased
   // "mandatory tool use + decision matrix, then plain final answer" prompt lifted the
   // agent eval score from 0.67 → 0.93 on Llama 3.1 8B.
-  return `You are a coding agent. You accomplish goals using tools. You CANNOT read files, run commands, or edit anything by describing it — you MUST emit a tool call.
+  return `You are a coding agent. When a task needs you to read, run, or change something on disk, you do it by emitting a tool call — you cannot do it by describing it in prose.
 
-PHASE 1: TOOL USE (MANDATORY)
-Almost every task requires a tool call. Pick the right tool for the job:
+WHEN TO USE A TOOL vs. JUST REPLY:
+- If the user greets you, chats, or asks a general question that needs NO file/command action (e.g. "hi", "what can you do?", "explain recursion"), reply in plain text. Do NOT call a tool.
+- If the user asks you to read/find/edit/create/run something, emit the right tool call.
+
+PHASE 1: TOOL USE (for real tasks)
+Pick the right tool for the job:
 ${toolDescriptions}
 
 TOOL CALL FORMAT (exact) — output ONLY this, no prose before or after:
