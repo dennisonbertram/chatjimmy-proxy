@@ -204,7 +204,15 @@ export function parseToolCalls(text: string, validToolNames: Set<string>): Parse
     return '';
   });
 
-  return { text: cleaned.trim(), toolUses };
+  // Strip any orphaned tool-call tag fragments the model leaked (e.g. a stray
+  // </tool_call> or a <tool_call> for an invalid tool name) so they don't show as text.
+  cleaned = cleaned
+    .replace(/<\/?tool_call>/gi, '')
+    .replace(/<function=[a-zA-Z0-9_]*>?/gi, '')
+    .replace(/<\/function>/gi, '')
+    .trim();
+
+  return { text: cleaned, toolUses };
 }
 
 /**
