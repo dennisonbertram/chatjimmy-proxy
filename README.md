@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.png?v=2" alt="claudberghini — a lobster fused with a Lamborghini, line-drawing style" width="100%">
+  <img src="assets/banner.png?v=3" alt="claudberghini — a lobster fused with a Lamborghini, line-drawing style" width="100%">
 </p>
 
 <h1 align="center">claudberghini 🦞🏎️</h1>
