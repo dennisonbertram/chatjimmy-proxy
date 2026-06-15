@@ -25,11 +25,12 @@ SP="${PROXY_DIR}/llama-system-prompt.txt"
 MODEL="${CLAUDBERGHINI_MODEL:-claude-3-5-sonnet-20241022}"
 ALLOWED="${CLAUDBERGHINI_TOOLS:-Read,Write,Edit,Bash,Grep,Glob,LS}"
 
-# Ensure the proxy is up
+# Ensure the proxy is up. All status output goes to stderr so it never pollutes
+# `claudberghini -p ... --output-format json` on stdout.
 if ! curl -s http://localhost:3000/health >/dev/null 2>&1; then
-  echo "[claudberghini] starting proxy..."
+  echo "[claudberghini] starting proxy..." >&2
   (cd "$PROXY_DIR" && LOG_LEVEL=info node dist/server.js >/tmp/proxy-debug.log 2>&1 &)
-  for i in {1..10}; do
+  for i in {1..20}; do
     curl -s http://localhost:3000/health >/dev/null 2>&1 && break
     sleep 0.5
   done

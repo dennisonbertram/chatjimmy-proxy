@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 420" font-family="'JetBrains Mono', ui-monospace, monospace" role="img" aria-label="Tokens per second generating an HTML page: claudberghini ~14,500, Groq Llama-8B ~1,250, Claude Sonnet 4.5 ~52, Claude Opus 4.1 ~14">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 420" font-family="'JetBrains Mono', ui-monospace, monospace" role="img" aria-label="Tokens per second generating an HTML page: claudberghini ~14,500, Groq Llama-8B ~1,250, Claude Sonnet 4.5 ~50, Claude Opus 4.1 ~14">
   <rect width="1000" height="420" fill="#f2eee2"/>
   <text x="40" y="48" font-size="26" font-weight="600" fill="#1a1a18" font-family="'Newsreader', Georgia, serif">Tokens/sec generating an HTML page</text>
   <text x="40" y="74" font-size="14" fill="#6b6555">Higher is faster. Log scale — each gridline is 10×.</text>
@@ -26,7 +26,7 @@
     <!-- Sonnet 52 -> (1.716-1)*183=131 -> end 361 -->
     <rect x="230" y="208" width="131" height="36" rx="4" fill="#7d8a70"/>
     <text x="40" y="231">Claude Sonnet 4.5</text>
-    <text x="371" y="231" fill="#5f6a54">~52 tok/s</text>
+    <text x="371" y="231" fill="#5f6a54">~50 tok/s</text>
 
     <!-- Opus 14 -> (1.146-1)*183=27 -> end 257 -->
     <rect x="230" y="258" width="27" height="36" rx="4" fill="#8a7d6a"/>

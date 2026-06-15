@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.png" alt="claudberghini — Claude Code at Lamborghini speed" width="100%">
+  <img src="assets/banner.png?v=2" alt="claudberghini — a lobster fused with a Lamborghini, line-drawing style" width="100%">
 </p>
 
 <h1 align="center">claudberghini 🦞🏎️</h1>
@@ -41,7 +41,7 @@ that drawing it **5× per turn** for reliability is *still* faster than a single
 ## How fast
 
 <p align="center">
-  <img src="assets/speed-chart.svg" alt="Tokens/sec generating an HTML page: claudberghini ~14,500, Groq Llama-8B ~1,250, Claude Sonnet 4.5 ~52, Claude Opus 4.1 ~14" width="100%">
+  <img src="assets/speed-chart.svg?v=2" alt="Tokens/sec generating an HTML page: claudberghini ~14,500, Groq Llama-8B ~1,250, Claude Sonnet 4.5 ~52, Claude Opus 4.1 ~14" width="100%">
 </p>
 
 Same task — *"write a basic HTML page"* — measured end to end:
@@ -50,7 +50,7 @@ Same task — *"write a basic HTML page"* — measured end to end:
 |--------|-----------:|------------------|
 | **claudberghini** (Taalas silicon, Llama 3.1 8B) | **~14,500** | — |
 | Groq (Llama 3.1 8B) | ~1,250 | 12× slower |
-| Claude Sonnet 4.5 | ~52 | ~280× slower |
+| Claude Sonnet 4.5 | ~50 | ~290× slower |
 | Claude Opus 4.1 | ~14 | **~1,000× slower** |
 
 > A full HTML page is **~8&nbsp;ms** of inference on claudberghini. Claude Opus spends ~9
