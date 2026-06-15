@@ -41,7 +41,7 @@ that drawing it **5× per turn** for reliability is *still* faster than a single
 ## How fast
 
 <p align="center">
-  <img src="assets/speed-chart.svg?v=2" alt="Tokens/sec generating an HTML page: claudberghini ~14,500, Groq Llama-8B ~1,250, Claude Sonnet 4.5 ~52, Claude Opus 4.1 ~14" width="100%">
+  <img src="assets/speed-chart.svg?v=2" alt="Tokens/sec generating an HTML page: claudberghini ~14,500, Groq Llama-8B ~1,250, Claude Sonnet 4.5 ~50, Claude Opus 4.1 ~14" width="100%">
 </p>
 
 Same task — *"write a basic HTML page"* — measured end to end:
