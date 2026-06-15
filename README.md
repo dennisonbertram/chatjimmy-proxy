@@ -1,334 +1,180 @@
-# ChatJimmy Proxy Server
+<p align="center">
+  <img src="assets/banner.png" alt="chatjimmy-proxy — Claude Code at warp speed" width="100%">
+</p>
 
-A lightweight Node.js/TypeScript proxy server that acts as a bridge between Anthropic API format (used by Claude Code) and ChatJimmy's ultra-fast Llama 3.1 8B backend.
+<h1 align="center">chatjimmy-proxy ⚡</h1>
 
-**Get 10-50x faster responses with ChatJimmy while using Claude Code with its familiar Anthropic API format.**
+<p align="center">
+  <b>Run Claude Code at warp speed — on <a href="https://chatjimmy.ai">ChatJimmy</a>'s Llama 3.1 8B at ~14,500 tokens/sec.</b><br>
+  A tiny local proxy that speaks the Anthropic Messages API, so the full Claude Code harness
+  drives a free, blisteringly fast model. Keep the harness; swap in the fastest brain.
+</p>
 
-## 🚀 Quick Start
+<p align="center">
+  <a href="https://dennisonbertram.github.io/chatjimmy-proxy/">Website</a> ·
+  <a href="#quickstart">Quickstart</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#speed">Speed</a> ·
+  <a href="#quality">Quality</a> ·
+  <a href="#safety">Safety</a>
+</p>
 
-```bash
-npm run dev
-# Server running on http://localhost:3000
-```
+---
 
-```bash
-export ANTHROPIC_API_URL="http://localhost:3000"
-claude  # Claude Code now uses ChatJimmy backend
-```
+## What is this?
 
-**See [CLAUDE_CODE_INTEGRATION.md](./CLAUDE_CODE_INTEGRATION.md) for full setup instructions.**
+[ChatJimmy](https://chatjimmy.ai) serves Llama 3.1 8B at an absurd **~14,500 tokens/sec** —
+roughly **10× faster than Groq** and **150–280× faster than frontier models**. It has no
+official API and no native tool-calling.
 
-## 📚 Documentation
+`chatjimmy-proxy` bridges that gap. It's a local server that:
 
-- **[CLAUDE_CODE_INTEGRATION.md](./CLAUDE_CODE_INTEGRATION.md)** ⭐ **START HERE** - Use ChatJimmy with Claude Code
-- **[COMPLETE_SOLUTION_SUMMARY.md](./COMPLETE_SOLUTION_SUMMARY.md)** - Full overview of what was built
-- **[TOOL_FOLLOWING_GUIDE.md](./TOOL_FOLLOWING_GUIDE.md)** - Improve tool-calling reliability (+6-8% BFCL)
-- **[CURL_TEST_EXAMPLES.md](./CURL_TEST_EXAMPLES.md)** - 20+ curl command examples
-- **[TEST_RESULTS.md](./TEST_RESULTS.md)** - Comprehensive test report (100% pass rate)
+- **Speaks the Anthropic Messages API** — so [Claude Code](https://claude.com/claude-code) (via [deep-claude](https://github.com/dennisonbertram/deep-claude)) talks to it unmodified.
+- **Translates tool calls** — injects a tool-use format into the prompt and parses the model's text back into Anthropic `tool_use` blocks (ChatJimmy has no tools API).
+- **Makes a weak 8B reliable** — best-of-N resampling, grounded answer selection, a tuned compact prompt, and a destructive-command guard.
 
-## Features
+The result: a real agentic coding loop — read, edit, create, search, run — on a free model,
+fast enough that 5× oversampling for reliability is essentially free.
 
-- **Ultra-Fast**: 40-60ms responses (vs 2-5s for Claude)
-- **Anthropic API Compatible**: Drop-in replacement for Claude SDK
-- **Format Conversion**: Automatic Anthropic ↔ ChatJimmy format conversion
-- **Streaming Support**: Full Server-Sent Events streaming
-- **Tool-Following Improvements**: JSON repair, schema validation, enhanced prompts
-- **Health Checks**: Built-in health monitoring and upstream connectivity verification
-- **CORS Support**: Cross-origin request handling
-- **TypeScript**: Full type safety with strict mode
-- **Production Ready**: 50+ tests, 100% pass rate, comprehensive error handling
+> **Why it works:** the speed *buys* the reliability. Each inference is ~3 ms, so the proxy
+> can draw the model 5 times per turn to get a valid tool call — and the whole turn is still
+> faster than a single frontier-model call.
 
-## Features
+## Quickstart
 
-- **Format Conversion**: Convert data between JSON, XML, and string formats
-- **API Proxying**: Forward HTTP requests to upstream services
-- **Health Checks**: Built-in health monitoring and upstream connectivity verification
-- **CORS Support**: Cross-origin request handling
-- **Configurable Logging**: Adjustable log levels (debug, info, warn, error)
-- **TypeScript**: Full type safety with strict mode
-- **Environment Configuration**: Flexible configuration via .env files
+### Requirements
 
-## Project Structure
+- **macOS or Linux**
+- **[Claude Code](https://claude.com/claude-code)** — `claude` on your `PATH`
+- **[deep-claude](https://github.com/dennisonbertram/deep-claude)** — routes Claude Code to a custom endpoint without touching your real Anthropic login
+- **[Node.js](https://nodejs.org/)** 18+
 
-```
-chatjimmy-proxy/
-├── src/
-│   ├── server.ts          # Main Express server
-│   ├── types.ts           # TypeScript type definitions
-│   ├── converter.ts       # Format conversion logic
-│   └── handlers.ts        # API request handlers
-├── tests/                 # Test directory
-├── package.json           # Project dependencies and scripts
-├── tsconfig.json          # TypeScript configuration
-├── .env.example           # Environment variables template
-└── README.md              # This file
-```
-
-## Prerequisites
-
-- Node.js >= 18.0.0
-- npm or yarn
-
-## Installation
-
-1. Clone or navigate to the project directory:
+### Install
 
 ```bash
-cd /Users/dennison/develop/chatjimmy-proxy
-```
-
-2. Install dependencies:
-
-```bash
+git clone https://github.com/dennisonbertram/chatjimmy-proxy
+cd chatjimmy-proxy
 npm install
-```
-
-3. Set up environment variables:
-
-```bash
-cp .env.example .env
-# Edit .env with your configuration
-```
-
-## Quick Start
-
-### Development
-
-Run the server in development mode with auto-reload:
-
-```bash
-npm run dev
-```
-
-### Production
-
-Build and run the compiled version:
-
-```bash
 npm run build
-npm start
+
+# register chatjimmy as a deep-claude endpoint (one time)
+~/path/to/deep-claude/bin/deep-claude endpoints add chatjimmy http://localhost:3000
 ```
 
-### Type Checking
-
-Verify TypeScript types without emitting files:
+### Run
 
 ```bash
-npm run typecheck
+cd your-project          # run it from the project you want to work in
+/path/to/chatjimmy-proxy/chatjimmy-code
 ```
 
-## API Endpoints
-
-### Health & Status
-
-#### GET /health
-Check if the proxy server is running.
+That's it. `chatjimmy-code` auto-starts the proxy and launches a clean Claude Code session on
+ChatJimmy. One-shot mode:
 
 ```bash
-curl http://localhost:3000/health
+chatjimmy-code -p "create an index.html with a Hello World heading"
 ```
 
-Response:
-```json
-{
-  "status": "healthy",
-  "timestamp": "2024-01-15T10:30:00.000Z"
-}
-```
-
-#### GET /health/upstream
-Verify connectivity to the upstream ChatJimmy API.
+Tip — add an alias:
 
 ```bash
-curl http://localhost:3000/health/upstream
+echo 'alias cjcode="/path/to/chatjimmy-proxy/chatjimmy-code"' >> ~/.zshrc
 ```
 
-Response:
-```json
-{
-  "connected": true
-}
-```
+> **Run it from your project directory.** Claude Code sandboxes file tools to the working
+> directory — paths outside it (like `/tmp`) are blocked.
 
-### Configuration
-
-#### GET /config
-Retrieve non-sensitive server configuration.
-
-```bash
-curl http://localhost:3000/config
-```
-
-Response:
-```json
-{
-  "chatjimmyApiUrl": "https://chatjimmy.ai",
-  "proxyPort": 3000,
-  "logLevel": "info",
-  "upstreamKeyConfigured": true
-}
-```
-
-### Format Conversion
-
-#### POST /convert
-Convert data between different formats.
-
-```bash
-curl -X POST http://localhost:3000/convert \
-  -H "Content-Type: application/json" \
-  -d '{
-    "sourceFormat": "json",
-    "targetFormat": "string",
-    "data": {"name": "John", "age": 30}
-  }'
-```
-
-Supported conversions:
-- `json` → `json` (validation/transformation)
-- `json` → `string` (serialization)
-- `string` → `json` (parsing)
-- `json` → `xml` (conversion)
-- `xml` → `json` (parsing)
-
-### API Proxying
-
-#### POST /proxy
-Forward HTTP requests to upstream services.
-
-```bash
-curl -X POST http://localhost:3000/proxy \
-  -H "Content-Type: application/json" \
-  -d '{
-    "method": "GET",
-    "endpoint": "/api/chat",
-    "headers": {"Authorization": "Bearer token123"}
-  }'
-```
-
-Request body:
-```json
-{
-  "method": "GET|POST|PUT|DELETE|PATCH",
-  "endpoint": "/path/to/endpoint",
-  "headers": {
-    "custom-header": "value"
-  },
-  "body": {}
-}
-```
-
-## Environment Variables
-
-Create a `.env` file in the project root with the following variables:
-
-```env
-# ChatJimmy API Base URL
-CHATJIMMY_API_URL=https://chatjimmy.ai
-
-# Anthropic API Key for authentication
-ANTHROPIC_API_KEY=your_api_key_here
-
-# Proxy server port
-PROXY_PORT=3000
-
-# Log level: debug, info, warn, error
-LOG_LEVEL=debug
-```
-
-## Building
-
-Compile TypeScript to JavaScript:
-
-```bash
-npm run build
-```
-
-Output files will be in the `dist/` directory.
-
-## Testing
-
-Run tests:
-
-```bash
-npm test
-```
-
-## Development
-
-### Adding New Routes
-
-Edit `src/server.ts` to add new Express routes.
-
-### Adding New Conversions
-
-Add conversion logic to `src/converter.ts` in the `FormatConverter` class.
-
-### Adding New Handlers
-
-Add request handling logic to `src/handlers.ts` in the `APIHandler` class.
-
-## TypeScript Configuration
-
-The project uses strict TypeScript mode with:
-- Strict null checks
-- No implicit any
-- Force consistent casing
-- Source maps for debugging
-- Declaration maps for IDE support
-
-## Error Handling
-
-The server handles errors gracefully:
-- Invalid input validation on all endpoints
-- Upstream request timeouts (30s)
-- Network error recovery
-- Detailed error logging with timestamps
-
-## Logging
-
-Logs are written to console with the following format:
+## How it works
 
 ```
-[LEVEL] TIMESTAMP - MESSAGE
+Claude Code (Anthropic Messages API)
+        │   via deep-claude --endpoint chatjimmy  (isolates your real Anthropic login)
+        ▼
+  chatjimmy-proxy   :3000
+    • strips Claude Code's giant prompt → compact tuned prompt (--system-prompt-file)
+    • strips <system-reminder> noise, filters to coding tools
+    • injects <tool_call> format into the system prompt
+    • best-of-N: re-sample until a valid tool call parses
+    • grounded best-of-N: pick the answer most supported by tool output
+    • guards against destructive commands
+        ▼
+  https://chatjimmy.ai/api/chat   →   Llama 3.1 8B  @ ~14,500 tok/s
 ```
 
-Adjust `LOG_LEVEL` environment variable to control verbosity:
-- `debug`: Detailed diagnostic information
-- `info`: General informational messages
-- `warn`: Warning messages
-- `error`: Error messages only
+The proxy is **backend-switchable**: set `BACKEND=openrouter` to route to
+`meta-llama/llama-3.1-8b-instruct` instead — handy for tuning against the same model on a
+billed API without hammering ChatJimmy.
 
-## Graceful Shutdown
+## Speed
 
-The server responds to SIGTERM and SIGINT signals to gracefully close connections before exiting.
+Measured with `./eval/speed-benchmark.sh` (ChatJimmy `/api/chat` telemetry + end-to-end runs):
 
-## Performance Considerations
+| Metric | ChatJimmy Llama 3.1 8B |
+|--------|------------------------|
+| Decode rate | **~14,500 tokens/sec** |
+| Time-to-first-token | **~1.1 ms** |
+| Generate a full HTML page | **~8 ms** of inference (~1.5 s end-to-end incl. harness) |
+| Model time per agent turn | **~330 ms** (incl. up to 5× best-of-N + network) |
 
-- Request timeout: 30 seconds
-- Max JSON body size: 10MB
-- CORS enabled for all origins
-- Request/response logging for debugging
+For comparison (decode rate): Claude / GPT-4 class ≈ 50–100 tok/s · Groq Llama-8B ≈ 1,250 tok/s.
 
-## Troubleshooting
+## Quality
 
-### Server won't start
-- Check that port 3000 (or your configured PROXY_PORT) is available
-- Verify Node.js version >= 18.0.0
+After prompt + harness tuning (real Claude Code agent loop):
 
-### Upstream connection fails
-- Verify CHATJIMMY_API_URL is correct
-- Check network connectivity
-- Use `/health/upstream` endpoint to diagnose
+| Task set | ChatJimmy | OpenRouter llama-3.1-8b |
+|----------|-----------|--------------------------|
+| Core 4 (read / edit / create / grep) | **5/5 each** (≈20/20) | 20/20 |
+| Hard 10 (multi-step, mutations, multi-file) | ≈0.70 | 1.00 |
 
-### TypeScript errors
-- Run `npm run typecheck` to see all type errors
-- Ensure all dependencies are installed
+ChatJimmy's instance is more quantized than OpenRouter's, so absolute quality is lower — but
+the core coding loop is reliable, and the speed is unmatched. It's an 8B model: great for
+focused file ops, weaker on complex multi-file logic.
+
+Reproduce: `./eval/real-path-eval.sh 5` (core), `EVAL_TASKS=./tasks-hard ... eval/run-eval.js` (hard).
+
+## Safety
+
+The weak model can hallucinate commands, so the proxy refuses to pass through destructive or
+privileged shell calls (`sudo`, `rm -rf /`, `mkfs`, `dd`, `curl … | sh`, writes to
+`/etc/{passwd,shadow,hosts,sudoers}`, …). It also never *forces* a tool call — a greeting like
+"hi" gets a plain-text reply, not an invented command. Claude Code's own permission system
+still applies on top.
+
+This is defense-in-depth for a small model, not a security boundary — run it on code and
+directories you trust, like any coding agent.
+
+## Configuration
+
+The `chatjimmy-code` launcher bundles the settings that make the weak model work: compact
+system prompt, no MCP servers, no skills, coding-only toolset. Override via env:
+
+| Env | Default | What |
+|-----|---------|------|
+| `BACKEND` | `chatjimmy` | `openrouter` to use `meta-llama/llama-3.1-8b-instruct` |
+| `TOOL_SAMPLE_ATTEMPTS` | `5` | best-of-N draws to get a valid tool call |
+| `ANSWER_SAMPLE_ATTEMPTS` | `3` | grounded answer candidates |
+| `TOOL_ALLOWLIST` | coding set | comma list, or `*` to pass all tools through |
+| `MAX_SYSTEM_BYTES` | `18000` | trim the system prompt to fit ChatJimmy's ~24 KB ceiling |
+| `CHATJIMMY_TOOLS` | `Read,Write,Edit,Bash,Grep,Glob,LS` | tools advertised to the model |
+
+## Project layout
+
+| Path | Purpose |
+|------|---------|
+| `src/server.ts` | the proxy: format conversion, tool translation, best-of-N, safety guard |
+| `src/tools.ts` | tool-prompt injection + parsing |
+| `chatjimmy-code` | one-command launcher (bare-basic Claude Code on ChatJimmy) |
+| `llama-system-prompt.txt` | the tuned compact system prompt |
+| `eval/` | eval harness, hard task suite, real-path + speed benchmarks |
+| `BENCHMARK.md` | the speed story |
+
+## Acknowledgements
+
+Built to ride on [deep-claude](https://github.com/dennisonbertram/deep-claude), which does the
+hard work of pointing Claude Code at a custom endpoint while keeping your real Anthropic login
+untouched. ChatJimmy provides the ludicrously fast inference.
 
 ## License
 
-MIT
-
-## Author
-
-ChatJimmy Development Team
+MIT — see [LICENSE](LICENSE).

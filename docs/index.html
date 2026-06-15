@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>chatjimmy-proxy — Claude Code at warp speed</title>
+<meta name="description" content="A tiny local proxy that runs the full Claude Code harness on ChatJimmy's Llama 3.1 8B at ~14,500 tokens/sec. Keep the harness; swap in the fastest brain.">
+<meta name="theme-color" content="#f2eee2">
+<link rel="canonical" href="https://dennisonbertram.github.io/chatjimmy-proxy/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="chatjimmy-proxy — Claude Code at warp speed">
+<meta property="og:description" content="Run Claude Code on ChatJimmy's Llama 3.1 8B at ~14,500 tokens/sec. Keep the harness; swap in the fastest brain.">
+<meta property="og:image" content="https://dennisonbertram.github.io/chatjimmy-proxy/assets/thumbnail.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://dennisonbertram.github.io/chatjimmy-proxy/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E⚡%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..600;1,6..72,400..600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..600;1,8..60,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to the story</a>
+
+<header class="nav-edge">
+  <a class="wordmark" href="#top">chatjimmy-proxy</a>
+  <a class="link" href="https://github.com/dennisonbertram/chatjimmy-proxy">GitHub&nbsp;↗</a>
+</header>
+
+<section class="hero" id="top">
+  <div class="hero__inner">
+    <h1 class="reveal" style="--i:0">The same harness. A <em>far</em> faster brain.</h1>
+    <p class="hero__lede reveal" style="--i:1"><code>chatjimmy-proxy</code> points <a href="https://claude.com/claude-code">Claude&nbsp;Code</a> at <a href="https://chatjimmy.ai">ChatJimmy</a>'s Llama&nbsp;3.1&nbsp;8B — a free model that decodes at <strong>~14,500&nbsp;tokens/sec</strong>. You keep the full agentic loop; the model behind it just got ~150× faster.</p>
+    <p class="hero__actions reveal" style="--i:2">
+      <a class="link" href="#stage-setup">Jump to install&nbsp;↓</a>
+      <a class="link" href="https://github.com/dennisonbertram/chatjimmy-proxy">View on GitHub&nbsp;↗</a>
+    </p>
+  </div>
+
+  <figure class="banner reveal" style="--i:3">
+    <img src="assets/banner.png" alt="A command-line terminal window streaking through deep space at warp speed toward a glowing black hole, amber light trails — Claude Code meets Interstellar." width="1536" height="1024">
+    <figcaption>A terminal, at warp speed.</figcaption>
+  </figure>
+</section>
+
+<main id="main">
+  <ol class="stages">
+
+    <li class="stage" id="stage-idea">
+      <hr class="stage__rule" aria-hidden="true">
+      <h2><span class="stage__num">1.0</span>The idea.</h2>
+      <div class="prose">
+        <p>Claude&nbsp;Code is one of the best agentic coding harnesses there is — but the planning loop, tool use, permissions and sub-agents are all <em>harness</em>, not <em>model</em>. <a href="https://chatjimmy.ai">ChatJimmy</a> serves Llama&nbsp;3.1&nbsp;8B at an almost absurd speed: <strong>~14,500&nbsp;tokens/sec</strong>, ~1.1&nbsp;ms to first token. That's roughly <strong>10× faster than Groq</strong> and <strong>150–280× faster than frontier models</strong>.</p>
+        <p>It has no official API and no tool-calling. <code>chatjimmy-proxy</code> bridges the gap — a tiny local server that speaks the Anthropic Messages API on one side and ChatJimmy's raw text endpoint on the other, translating tool calls in between.</p>
+      </div>
+      <aside class="aside-note">
+        <p class="aside-note__head">Speed buys reliability.</p>
+        <p>Each inference is ~3&nbsp;ms, so the proxy can draw the model 5× per turn to land a valid tool call — and the whole turn is still faster than a single frontier-model call. The speed is what makes a weak 8B usable as a coding agent.</p>
+      </aside>
+    </li>
+
+    <li class="stage" id="stage-how">
+      <hr class="stage__rule" aria-hidden="true">
+      <h2><span class="stage__num">2.0</span>How it works.</h2>
+      <div class="prose">
+        <p>Claude&nbsp;Code talks to the proxy (via <a href="https://github.com/dennisonbertram/deep-claude">deep-claude</a>, which isolates your real Anthropic login). The proxy does the work that turns a fast-but-weak model into a coding agent:</p>
+        <ol>
+          <li>swaps Claude&nbsp;Code's giant system prompt for a compact, tuned one,</li>
+          <li>injects a <code>&lt;tool_call&gt;</code> format and parses the model's text back into Anthropic <code>tool_use</code> blocks,</li>
+          <li><strong>best-of-N</strong>: re-samples until a valid tool call parses,</li>
+          <li><strong>grounded best-of-N</strong>: picks the answer most supported by actual tool output, and</li>
+          <li>guards against destructive shell commands.</li>
+        </ol>
+      </div>
+      <aside class="aside-note">
+        <p class="aside-note__head">Backend-switchable.</p>
+        <p>Set <code>BACKEND=openrouter</code> to route to <code>meta-llama/llama-3.1-8b-instruct</code> instead — the same model on a billed API, for tuning without hammering ChatJimmy.</p>
+      </aside>
+    </li>
+
+    <li class="stage" id="stage-setup">
+      <hr class="stage__rule" aria-hidden="true">
+      <h2><span class="stage__num">3.0</span>The setup.</h2>
+      <div class="prose">
+        <p>You'll need <a href="https://claude.com/claude-code">Claude&nbsp;Code</a>, <a href="https://github.com/dennisonbertram/deep-claude">deep-claude</a>, and Node&nbsp;18+. Clone, build, and register ChatJimmy as a deep-claude endpoint:</p>
+      </div>
+      <div class="codeblock">
+        <div class="codeblock__bar">
+          <span class="codeblock__label">sh</span>
+          <button class="copy-btn" type="button" data-copy="install-sh" aria-live="polite">Copy</button>
+        </div>
+        <pre id="install-sh"><code>git clone https://github.com/dennisonbertram/chatjimmy-proxy
+cd chatjimmy-proxy
+npm install &amp;&amp; npm run build
+
+<span class="c"># register chatjimmy as a deep-claude endpoint (one time)</span>
+deep-claude endpoints add chatjimmy http://localhost:3000</code></pre>
+      </div>
+    </li>
+
+    <li class="stage" id="stage-run">
+      <hr class="stage__rule" aria-hidden="true">
+      <h2><span class="stage__num">4.0</span>The run.</h2>
+      <div class="prose">
+        <p>One launcher does everything — it auto-starts the proxy and opens a clean Claude&nbsp;Code session on ChatJimmy. <strong>Run it from the project directory you want to work in</strong> (Claude&nbsp;Code sandboxes file tools to the working directory).</p>
+      </div>
+      <div class="codeblock">
+        <div class="codeblock__bar">
+          <span class="codeblock__label">console</span>
+        </div>
+        <pre><code>$ cd your-project
+$ chatjimmy-code
+<span class="o">…a clean Claude Code session, on Llama 3.1 8B @ ~14,500 tok/s…</span>
+
+$ chatjimmy-code -p "create an index.html with a Hello World heading"
+<span class="o">…done in ~1.5s…</span></code></pre>
+      </div>
+      <div class="prose">
+        <p>The launcher bundles the settings that make the weak model work: compact prompt, no MCP servers, no skills, coding-only toolset.</p>
+      </div>
+    </li>
+
+    <li class="stage" id="stage-speed">
+      <hr class="stage__rule" aria-hidden="true">
+      <h2><span class="stage__num">5.0</span>The speed.</h2>
+      <div class="prose">
+        <p>Measured with <code>./eval/speed-benchmark.sh</code> against ChatJimmy's own telemetry and real end-to-end runs:</p>
+      </div>
+      <dl class="policies">
+        <dt>~14,500 tok/s<span class="default-tag">— decode rate</span></dt>
+        <dd>vs ≈1,250 for Groq's Llama-8B, ≈50–100 for frontier models.</dd>
+        <dt>~1.1 ms</dt>
+        <dd>time-to-first-token.</dd>
+        <dt>~8 ms</dt>
+        <dd>of inference to generate a full HTML page (~1.5&nbsp;s end-to-end including harness).</dd>
+        <dt>~330 ms</dt>
+        <dd>model time per agent turn — including up to 5× best-of-N resampling.</dd>
+      </dl>
+    </li>
+
+    <li class="stage" id="stage-quality">
+      <hr class="stage__rule" aria-hidden="true">
+      <h2><span class="stage__num">6.0</span>The quality &amp; the guardrails.</h2>
+      <div class="prose">
+        <p>After tuning the prompt and harness, on the real Claude&nbsp;Code agent loop the core four operations — read, edit, create, grep — land <strong>5/5</strong>. Harder multi-step and multi-file tasks reach ≈0.70 on ChatJimmy's quantized instance (1.0 on OpenRouter's). It's an 8B model: superb for focused file ops, weaker on tangled multi-file logic.</p>
+      </div>
+      <aside class="aside-note">
+        <p class="aside-note__head">Safe by default.</p>
+        <p>A weak model can hallucinate commands, so the proxy refuses destructive or privileged shell calls (<code>sudo</code>, <code>rm&nbsp;-rf&nbsp;/</code>, <code>curl…|sh</code>, writes to <code>/etc/*</code>) and never <em>forces</em> a tool call — "hi" gets a plain reply, not an invented command. Run it on code you trust, like any agent.</p>
+      </aside>
+    </li>
+
+  </ol>
+
+  <section class="reference" id="reference">
+    <div class="reference__inner">
+      <h2 class="section-head">The reference.</h2>
+      <p class="section-sub">Override anything through the environment.</p>
+
+      <table class="spec-sheet">
+        <thead><tr><th colspan="2">Run</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">chatjimmy-code [args…]</th><td>Clean Claude&nbsp;Code session on ChatJimmy. Args pass through to <code>claude</code>.</td></tr>
+          <tr><th scope="row">chatjimmy-code -p "task"</th><td>One-shot print mode.</td></tr>
+          <tr><th scope="row">./eval/real-path-eval.sh N</th><td>Score the four core tasks, N runs each.</td></tr>
+          <tr><th scope="row">./eval/speed-benchmark.sh</th><td>Decode rate + end-to-end timing.</td></tr>
+        </tbody>
+      </table>
+
+      <table class="spec-sheet">
+        <thead><tr><th colspan="2">Configure (env)</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">BACKEND</th><td><code>chatjimmy</code> (default) or <code>openrouter</code>.</td></tr>
+          <tr><th scope="row">TOOL_SAMPLE_ATTEMPTS</th><td>best-of-N draws for a valid tool call (default 5).</td></tr>
+          <tr><th scope="row">ANSWER_SAMPLE_ATTEMPTS</th><td>grounded answer candidates (default 3).</td></tr>
+          <tr><th scope="row">CHATJIMMY_TOOLS</th><td>tools advertised to the model.</td></tr>
+          <tr><th scope="row">MAX_SYSTEM_BYTES</th><td>trim the prompt to ChatJimmy's ~24&nbsp;KB ceiling.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <p>Built to ride on <a href="https://github.com/dennisonbertram/deep-claude">deep-claude</a>. Inference by <a href="https://chatjimmy.ai">ChatJimmy</a>. MIT licensed.</p>
+  <p><a class="link" href="https://github.com/dennisonbertram/chatjimmy-proxy">github.com/dennisonbertram/chatjimmy-proxy&nbsp;↗</a></p>
+</footer>
+
+<script>
+(function () {
+  document.documentElement.classList.add("js");
+  var stages = document.querySelectorAll(".stage");
+  var wantsMotion = window.matchMedia("(prefers-reduced-motion: no-preference)").matches;
+  var wideEnough = window.matchMedia("(min-width: 40rem)").matches;
+  if (wantsMotion && wideEnough && "IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add("is-seen"); io.unobserve(e.target); }
+      });
+    }, { rootMargin: "0px 0px -12% 0px" });
+    stages.forEach(function (s) { io.observe(s); });
+  } else {
+    stages.forEach(function (s) { s.classList.add("is-seen"); });
+  }
+  document.querySelectorAll(".copy-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var src = document.getElementById(btn.dataset.copy);
+      if (!src) return;
+      var text = src.innerText.replace(/^\$\s/gm, "");
+      navigator.clipboard.writeText(text).then(function () {
+        btn.textContent = "Copied ✓";
+        setTimeout(function () { btn.textContent = "Copy"; }, 2500);
+      }).catch(function () {
+        btn.textContent = "Select & copy";
+        setTimeout(function () { btn.textContent = "Copy"; }, 3000);
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
